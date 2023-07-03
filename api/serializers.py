@@ -6,13 +6,13 @@ from .models import *
 class MealsSerializer(serializers.ModelSerializer):
     class Meta:
         model = Meals
-        fields = ["id", "name", "description", "price"]
+        fields = ["id", "name", "description", "price", "image"]
 
 
 class CustomerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Customer
-        fields = ["name", "street", "postal_code", "city"]
+        fields = ["name", 'email', "street", "postal_code", "city"]
 
 
 class OrderedMealsSerializer(serializers.ModelSerializer):

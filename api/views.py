@@ -5,10 +5,15 @@ from rest_framework.views import APIView
 from .serializers import *
 from .models import *
 from rest_framework import status
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework.permissions import IsAuthenticated
 
 
 # Create your views here.
 class MealsAPI(APIView):
+    # authentication_classes = [JWTAuthentication]
+    # permission_classes = [IsAuthenticated]
+
     def get(self, request):
         meals = Meals.objects.all()
         serializer = MealsSerializer(meals, many=True)
@@ -30,6 +35,9 @@ class MealsAPI(APIView):
 
 
 class OrderedMealsAPI(APIView):
+    # authentication_classes = [JWTAuthentication]
+    # permission_classes = [IsAuthenticated]
+
     def get(self, request, name):
         orders = OrderedMeals.objects.filter(order_user__name=name)
         if not orders:
@@ -97,11 +105,43 @@ class OrderedMealsAPI(APIView):
             "data": {
                 "user_info": {
                     "name": customer.name,
+                    "email": customer.email,
                     "street": customer.street,
                     "postal_code": customer.postal_code,
                     "city": customer.city,
                 },
-                "ordered_items": [{"name": item["name"],"amount": item["amount"],} for item in ordered_items],
+                "ordered_items": [
+                    {
+                        "name": item["name"],
+                        "amount": item["amount"],
+                    }
+                    for item in ordered_items
+                ],
             },
         }
         return Response(response_data, status=status.HTTP_201_CREATED)
+
+
+class MealDetailsAPIView(APIView):
+    def get(self, request, id):
+        try:
+            print("id = ", id)
+            meal = Meals.objects.get(id=id)
+            serializer = MealsSerializer(meal)
+            return Response(
+                {
+                    "status": status.HTTP_200_OK,
+                    "message": "Meal details retrieved successfully",
+                    "data": serializer.data,
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        except Meals.DoesNotExist:
+            return Response(
+                {
+                    "status": status.HTTP_404_NOT_FOUND,
+                    "message": "Meal not found",
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
