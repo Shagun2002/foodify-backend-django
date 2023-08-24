@@ -7,9 +7,9 @@ from .models import *
 from rest_framework import status
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
+from django.db.models import Q
 
 
-# Create your views here.
 class MealsAPI(APIView):
     # authentication_classes = [JWTAuthentication]
     # permission_classes = [IsAuthenticated]
@@ -32,6 +32,31 @@ class MealsAPI(APIView):
                 status=status.HTTP_200_OK,
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class MealDetailsAPIView(APIView):
+    def get(self, request, id):
+        try:
+            print("id = ", id)
+            meal = Meals.objects.get(id=id)
+            serializer = MealsSerializer(meal)
+            return Response(
+                {
+                    "status": status.HTTP_200_OK,
+                    "message": "Meal details retrieved successfully",
+                    "data": serializer.data,
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        except Meals.DoesNotExist:
+            return Response(
+                {
+                    "status": status.HTTP_404_NOT_FOUND,
+                    "message": "Meal not found",
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
 
 class OrderedMealsAPI(APIView):
@@ -57,7 +82,7 @@ class OrderedMealsAPI(APIView):
 
         data = {
             "status": status.HTTP_200_OK,
-            "message": "Successfully retrieved orders!",
+            "message": "Successfully retrieved Orders!",
             "data": {
                 "user_info": order_user_serializer.data,
                 "orders": serializer.data,
@@ -122,26 +147,140 @@ class OrderedMealsAPI(APIView):
         return Response(response_data, status=status.HTTP_201_CREATED)
 
 
-class MealDetailsAPIView(APIView):
-    def get(self, request, id):
-        try:
-            print("id = ", id)
-            meal = Meals.objects.get(id=id)
-            serializer = MealsSerializer(meal)
+class SearchAPIView(APIView):
+    def get(self, request, name):
+        searched_meal = Meals.objects.all().filter(Q(name__icontains=name))
+
+        if searched_meal.exists():
+            serializer = MealsSerializer(searched_meal, many=True)
             return Response(
                 {
                     "status": status.HTTP_200_OK,
-                    "message": "Meal details retrieved successfully",
+                    "message": "Meals FOUND successfully",
                     "data": serializer.data,
                 },
                 status=status.HTTP_200_OK,
             )
-
-        except Meals.DoesNotExist:
+        else:
             return Response(
                 {
                     "status": status.HTTP_404_NOT_FOUND,
-                    "message": "Meal not found",
+                    "message": "No similar meal found!",
                 },
                 status=status.HTTP_404_NOT_FOUND,
             )
+
+
+class ReviewRatingAPI(APIView):
+    def get(self, request):
+        review = ReviewRating.objects.all()
+        serializer = ReviewRatingSerializer(review, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        serializer = ReviewRatingSerializer(
+            data=request.data, context={"request": request}
+        )
+        if serializer.is_valid():
+            serializer.save(user=request.user)
+            return Response(
+                {
+                    "status": status.HTTP_201_CREATED,
+                    "message": "Review ratings added!",
+                    "data": serializer.data,
+                },
+                status=status.HTTP_201_CREATED,
+            )
+
+        return Response(
+            {
+                "status": status.HTTP_404_NOT_FOUND,
+                "message": "ERROR while posting review Ratings!",
+            },
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+
+def admin_only(func):
+    def wrapper(self, request, *args, **kwargs):
+        if request.user.is_authenticated and request.user.role == "Admin":
+            return func(self, request, *args, **kwargs)
+        return Response(
+            {"message": "Unauthorized user"}, status=status.HTTP_401_UNAUTHORIZED
+        )
+
+    return wrapper
+
+
+class TestimonialsAPI(APIView):
+    def get(self, request):
+        testimonials = Testimonials.objects.all()
+        serializer = TestimonialsSerializer(testimonials, many=True)
+        if len(serializer.data) != 0:
+            return Response(
+                {
+                    "status": status.HTTP_200_OK,
+                    "message": "Got all the testimonials",
+                    "data": serializer.data,
+                },
+                status=status.HTTP_200_OK,
+            )
+        else:
+            return Response(
+                {
+                    "status": status.HTTP_404_NOT_FOUND,
+                    "message": "ERROR in getting the Testimonials",
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+    @admin_only
+    def post(self, request):
+        serializer = TestimonialsSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(
+                {
+                    "status": status.HTTP_201_CREATED,
+                    "message": "Testimonial added successfully!",
+                    "data": serializer.data,
+                },
+                status=status.HTTP_201_CREATED,
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @admin_only
+    def put(self, request, id):
+        try:
+            testimonial = Testimonials.objects.get(id=id)
+        except Testimonials.DoesNotExist:
+            return Response(
+                {"message": "Testimonial not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        serializer = TestimonialsSerializer(testimonial, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(
+                {
+                    "status": status.HTTP_200_OK,
+                    "message": "Testimonial updated successfully!",
+                    "data": serializer.data,
+                }
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @admin_only
+    def delete(self, request, id):
+        try:
+            testimonial = Testimonials.objects.get(id=id)
+        except Testimonials.DoesNotExist:
+            return Response(
+                {"message": "Testimonial not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        testimonial.delete()
+        return Response(
+            {"message": f"Testimonial{id} deleted successfully"},
+            status=status.HTTP_204_NO_CONTENT,
+        )

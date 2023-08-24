@@ -5,10 +5,10 @@ from .models import *
 
 @admin.register(ContactUs)
 class ContactAdmin(admin.ModelAdmin):
-    list_display = [ "name",  "message", "ratings"]
+    list_display = ["id", "name",  "message", "ratings"]
     
     
 @admin.register(BookTable)
 class BookTableAdmin(admin.ModelAdmin):
-    list_display = [ "name",  "number_of_persons", 'date', 'time']
+    list_display = ["id", "name",  "number_of_persons", 'date', 'time']
     
